@@ -1,15 +1,17 @@
 import React from 'react';
-import { EconomyConfig } from '../types';
-import { Settings, Coins } from 'lucide-react';
+import { EconomyConfig, BankConfig } from '../types';
+import { Settings, Coins, Landmark } from 'lucide-react';
 
 interface SettingsEditorProps {
   serverName: string;
   economy: EconomyConfig;
+  bank?: BankConfig;
   onServerNameChange: (name: string) => void;
   onEconomyChange: (economy: EconomyConfig) => void;
+  onBankChange?: (bank: BankConfig) => void;
 }
 
-const SettingsEditor: React.FC<SettingsEditorProps> = ({ serverName, economy, onServerNameChange, onEconomyChange }) => {
+const SettingsEditor: React.FC<SettingsEditorProps> = ({ serverName, economy, bank, onServerNameChange, onEconomyChange, onBankChange }) => {
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-minecraft-gold flex items-center gap-2">
@@ -67,6 +69,26 @@ const SettingsEditor: React.FC<SettingsEditorProps> = ({ serverName, economy, on
                 />
              </div>
           </div>
+          
+          {bank && onBankChange && (
+            <div className="space-y-4">
+               <h3 className="text-lg font-semibold text-gray-300 flex items-center gap-2">
+                  <Landmark className="w-4 h-4" /> Banco
+               </h3>
+               <div className="flex items-center gap-3 bg-gray-800 p-3 rounded border border-gray-600">
+                  <input 
+                    type="checkbox" 
+                    checked={bank.enabled} 
+                    onChange={(e) => onBankChange({ ...bank, enabled: e.target.checked })}
+                    className="w-5 h-5 rounded bg-gray-700 border-gray-500 text-minecraft-accent"
+                  />
+                  <div>
+                    <span className="block text-sm font-medium text-white">Ativar Sistema de Banco</span>
+                    <span className="text-xs text-gray-400">Permite depositar/sacar e saldo separado.</span>
+                  </div>
+               </div>
+            </div>
+          )}
 
         </div>
       </div>

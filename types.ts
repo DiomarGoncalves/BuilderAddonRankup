@@ -5,14 +5,15 @@ export interface Coordinates {
 }
 
 export interface MineConfig {
-  // blockType, pos1, pos2 are legacy for the UI helper, but the core logic now uses fillCommands
   blockType?: string; 
   pos1?: Coordinates;
   pos2?: Coordinates;
   
-  fillCommands: string; // Primary source of truth for the mine geometry
-  resetTime: number; // in seconds
+  fillCommands: string;
+  resetTime: number; 
   hasteAmplifier: number;
+  regionEffects: boolean; 
+  effectType: string; 
 }
 
 export interface Rank {
@@ -29,15 +30,66 @@ export interface EconomyConfig {
   startingBalance: number;
 }
 
+export interface BankConfig {
+  enabled: boolean;
+}
+
+export interface VipRank {
+  tag: string; 
+  name: string; 
+  multiplier: number; 
+}
+
+export interface TemporaryBooster {
+  id: string;
+  name: string;
+  type: 'sell' | 'machine';
+  multiplier: number;
+  durationMinutes: number;
+}
+
+export interface BoostersConfig {
+  enabled: boolean;
+  globalMultiplier: number; 
+  vips: VipRank[];
+  items: TemporaryBooster[];
+}
+
+export interface Mission {
+  id: string;
+  name: string;
+  type: 'mine' | 'sell' | 'rankup';
+  target: number; // Amount to reach
+  period: 'daily' | 'weekly';
+  rewardType: 'money' | 'item' | 'booster';
+  rewardValue: number; // Amount of money or item count
+  rewardId?: string; // Item ID or Booster ID
+}
+
+export interface MissionsConfig {
+  enabled: boolean;
+  list: Mission[];
+}
+
+export interface ProtectionConfig {
+  enabled: boolean;
+  mineProtection: boolean; // Prevent breaking walls/floor
+  blockPlaceInMine: boolean; // Allow placing blocks in mine? (Usually false)
+  antiExploit: {
+    maxSellPerMinute: number; // 0 = unlimited
+  };
+  adminLogs: boolean; // Log actions to chat for admins
+}
+
 export interface EnchantmentConfig {
-  type: string; // ex: efficiency
+  type: string; 
   level: number;
 }
 
 export interface ShopItem {
   id: string;
   name: string;
-  itemType: string; // ex: minecraft:diamond_pickaxe
+  itemType: string; 
   price: number;
   amount: number;
   category?: string;
@@ -45,28 +97,35 @@ export interface ShopItem {
 }
 
 export interface SellItem {
-  itemType: string; // ex: minecraft:coal
+  itemType: string; 
   pricePerUnit: number;
 }
 
 export interface MachineConfig {
   id: string;
   name: string;
-  blockId: string; // The block placed in the world
-  dropsItemId: string; // The item generated
+  blockId: string; 
+  dropsItemId: string; 
   dropsPerMinute: number;
+  dropMode: 'below'; 
+  storageMode: 'drop' | 'chest'; 
+  maxPerChunk: number; 
 }
 
 export interface PlotConfig {
   enabled: boolean;
-  plotSize: number; // ex: 32x32
-  worldStart: Coordinates; // Where plots begin generating
+  plotSize: number; 
+  worldStart: Coordinates; 
   cost: number;
 }
 
 export interface AddonConfig {
   serverName: string;
   economy: EconomyConfig;
+  bank: BankConfig;
+  boosters: BoostersConfig;
+  missions: MissionsConfig;
+  protection: ProtectionConfig;
   ranks: Rank[];
   shop: ShopItem[];
   sellItems: SellItem[];

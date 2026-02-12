@@ -69,18 +69,8 @@ export function openMinesMenu(player) {
                          const centerZ = (z1 + z2) / 2;
                          const maxY = Math.max(y1, y2);
                          
-                         // 1. Limpa efeitos anteriores
                          player.runCommandAsync("effect @s clear");
-                         
-                         // 2. Teleporta
                          player.teleport({ x: centerX, y: maxY + 1.5, z: centerZ }); 
-                         
-                         // 3. Aplica Haste Infinito (20000000 ticks)
-                         player.addEffect("haste", 20000000, { 
-                             amplifier: targetRank.mine.hasteAmplifier, 
-                             showParticles: false 
-                         });
-
                          player.sendMessage(\`§aTeleportado para Mina \${targetRank.name}!\`);
                      } else {
                          player.sendMessage("§cErro: Coordenadas da mina inválidas.");
@@ -128,16 +118,72 @@ export function openShopItems(player, category) {
 export const BANK_MENU_CODE = `import { ActionFormData, ModalFormData } from "@minecraft/server-ui";
 import { config } from "../../core/config.js";
 import { getBalance, transferMoney } from "../../core/economy.js";
+import { getBankBalance, depositMoney, withdrawMoney } from "../../features/bank.js";
 import { world } from "@minecraft/server";
 
 export function openBankMenu(player) {
+    if (!config.bank || !config.bank.enabled) {
+        player.sendMessage("§cO sistema de banco está desativado.");
+        return;
+    }
+
+    const wallet = getBalance(player);
+    const bank = getBankBalance(player);
+    const sym = config.economy.currencySymbol;
+
     new ActionFormData()
-        .title("§2§lBANCO")
-        .body(\`§fSeu Saldo: §a\${config.economy.currencySymbol}\${getBalance(player)}\`)
-        .button("§aTransferir Dinheiro")
-        .button("§cFechar")
+        .title("§2§lBANCO CENTRAL")
+        .body(\`§fCarteira: §a\${sym}\${wallet}\\n§fBanco: §e\${sym}\${bank}\\n\\n§7Gerencie suas finanças com segurança.\`)
+        .button("§aDepositar", "textures/ui/arrow_down")
+        .button("§cSacar", "textures/ui/arrow_up")
+        .button("§bTransferir", "textures/ui/send_icon")
+        .button("§cFechar", "textures/ui/cancel")
         .show(player).then(res => { 
-            if (res.selection === 0) openTransferMenu(player); 
+            if (res.selection === 0) openDepositMenu(player);
+            if (res.selection === 1) openWithdrawMenu(player);
+            if (res.selection === 2) openTransferMenu(player);
+        });
+}
+
+function openDepositMenu(player) {
+    new ModalFormData()
+        .title("§aDEPOSITAR")
+        .textField("Quantidade para depositar:", "Ex: 1000")
+        .toggle("Depositar Tudo?", false)
+        .show(player).then(res => {
+            if (res.canceled) return;
+            const amountStr = res.formValues[0];
+            const all = res.formValues[1];
+            
+            let amount = parseInt(amountStr);
+            if (all) amount = getBalance(player);
+            
+            if (!isNaN(amount) && amount > 0) {
+                player.sendMessage(depositMoney(player, amount).msg);
+            } else {
+                player.sendMessage("§cValor inválido.");
+            }
+        });
+}
+
+function openWithdrawMenu(player) {
+    new ModalFormData()
+        .title("§cSACAR")
+        .textField("Quantidade para sacar:", "Ex: 1000")
+        .toggle("Sacar Tudo?", false)
+        .show(player).then(res => {
+            if (res.canceled) return;
+            const amountStr = res.formValues[0];
+            const all = res.formValues[1];
+            
+            let amount = parseInt(amountStr);
+            if (all) amount = getBankBalance(player);
+            
+            if (!isNaN(amount) && amount > 0) {
+                player.sendMessage(withdrawMoney(player, amount).msg);
+            } else {
+                player.sendMessage("§cValor inválido.");
+            }
         });
 }
 
@@ -154,7 +200,7 @@ function openTransferMenu(player) {
     new ModalFormData()
         .title("§2TRANSFERÊNCIA")
         .dropdown("§fPara quem:", playerNames)
-        .textField("§fValor:", "1000")
+        .textField("§fValor (da carteira):", "1000")
         .show(player).then(res => {
             if (res.canceled) return;
             const target = playerNames[res.formValues[0]];
@@ -181,7 +227,6 @@ export function openPlotsMenu(player) {
         .button("§cVoltar")
         .show(player).then(res => {
             if (res.selection === 0) {
-                 // Limpa efeitos ao ir para o plot
                  player.runCommandAsync("effect @s clear");
                  teleportToPlot(player);
             }
@@ -210,5 +255,88 @@ function openPlotMembersMenu(player) {
             const newMember = res.formValues[0];
             if (newMember) player.sendMessage(addPlotMember(player, plotId, newMember).msg);
         });
+}
+`;
+
+export const BOOSTERS_MENU_CODE = `import { ActionFormData } from "@minecraft/server-ui";
+import { config } from "../../core/config.js";
+import { getSellMultiplier, getMachineMultiplier, getBoosterEndTime } from "../../features/boosters.js";
+
+export function openBoostersMenu(player) {
+    if (!config.boosters || !config.boosters.enabled) return;
+
+    const sellMult = getSellMultiplier(player);
+    const machMult = getMachineMultiplier(player);
+    
+    const sellEnd = getBoosterEndTime(player, 'sell');
+    const machEnd = getBoosterEndTime(player, 'machine');
+    const now = Date.now();
+    
+    const sellTimeLeft = sellEnd > now ? Math.ceil((sellEnd - now) / 60000) + "m" : "---";
+    const machTimeLeft = machEnd > now ? Math.ceil((machEnd - now) / 60000) + "m" : "---";
+
+    new ActionFormData()
+        .title("§eBOOSTERS ATIVOS")
+        .body(
+            \`§7Veja seus multiplicadores atuais:\\n\\n\` +
+            \`§a§lVENDA (Global + VIP + Booster)\\n\` +
+            \`§r§fMultiplicador Atual: §e\${sellMult.toFixed(1)}x\\n\` +
+            \`§fTempo Booster: §b\${sellTimeLeft}\\n\\n\` +
+            \`§6§lMÁQUINAS (Global + VIP + Booster)\\n\` +
+            \`§r§fMultiplicador Atual: §e\${machMult.toFixed(1)}x\\n\` +
+            \`§fTempo Booster: §b\${machTimeLeft}\`
+        )
+        .button("§cFechar")
+        .show(player);
+}
+`;
+
+export const MISSIONS_MENU_CODE = `import { ActionFormData } from "@minecraft/server-ui";
+import { config } from "../../core/config.js";
+import { checkAndResetMissions, getMissionStatus, claimMissionReward } from "../../features/missions.js";
+
+export function openMissionsMenu(player) {
+    if (!config.missions || !config.missions.enabled) return;
+    checkAndResetMissions(player);
+
+    const form = new ActionFormData()
+        .title("§dMISSÕES & QUESTS")
+        .body("§7Conclua tarefas diárias e semanais para ganhar recompensas!");
+
+    const missions = config.missions.list;
+    const statuses = missions.map(m => ({ m, status: getMissionStatus(player, m.id) }));
+
+    statuses.forEach(({ m, status }) => {
+        let icon = "textures/ui/lock";
+        let prefix = "§c";
+        
+        if (status.completed) {
+            if (status.claimed) {
+                icon = "textures/ui/check";
+                prefix = "§a[OK] ";
+            } else {
+                icon = "textures/ui/star_holo"; // Placeholder
+                prefix = "§e[RESGATAR] ";
+            }
+        } else {
+            prefix = "§7";
+        }
+
+        const percent = Math.floor((status.progress / status.target) * 100);
+        form.button(\`\${prefix}\${m.name}\\n§r§8Progresso: \${status.progress}/\${status.target} (\${percent}%)\`, icon);
+    });
+
+    form.show(player).then(res => {
+        if (res.canceled) return;
+        const selected = statuses[res.selection];
+        
+        if (selected.status.completed && !selected.status.claimed) {
+            player.sendMessage(claimMissionReward(player, selected.m.id).msg);
+        } else if (selected.status.claimed) {
+            player.sendMessage("§cJá resgatada.");
+        } else {
+            player.sendMessage(\`§eFalta pouco! \${selected.status.progress}/\${selected.status.target}\`);
+        }
+    });
 }
 `;

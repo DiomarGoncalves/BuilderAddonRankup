@@ -1,6 +1,6 @@
 import React from 'react';
 import { Rank } from '../types';
-import { Trash2, Plus, Zap, Box } from 'lucide-react';
+import { Trash2, Plus, Zap, Box, Map } from 'lucide-react';
 
 interface RankEditorProps {
   ranks: Rank[];
@@ -16,7 +16,9 @@ const RankEditor: React.FC<RankEditorProps> = ({ ranks, onChange }) => {
       mine: {
         fillCommands: "/fill 0 0 0 5 5 5 minecraft:stone",
         resetTime: 300,
-        hasteAmplifier: 1
+        hasteAmplifier: 1,
+        regionEffects: true,
+        effectType: "haste"
       },
       perks: []
     };
@@ -95,7 +97,18 @@ const RankEditor: React.FC<RankEditorProps> = ({ ranks, onChange }) => {
 
               {/* Mine Info */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-300 border-b border-gray-700 pb-2">Configuração da Mina</h3>
+                <h3 className="text-lg font-semibold text-gray-300 border-b border-gray-700 pb-2 flex items-center justify-between">
+                  Configuração da Mina
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400">Efeito na Região</span>
+                    <input 
+                      type="checkbox"
+                      checked={rank.mine.regionEffects !== false}
+                      onChange={(e) => handleMineChange(index, 'regionEffects', e.target.checked)}
+                      className="rounded border-gray-600 bg-gray-800 text-minecraft-accent"
+                    />
+                  </div>
+                </h3>
                 
                 <div>
                   <label className="block text-sm text-gray-400 mb-1">Comando de Preenchimento (/fill)</label>
@@ -109,9 +122,9 @@ const RankEditor: React.FC<RankEditorProps> = ({ ranks, onChange }) => {
                   <p className="text-xs text-gray-500 mt-1">Copie e cole o comando /fill gerado no jogo aqui.</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-2">
                   <div>
-                     <label className="block text-xs text-gray-500 mb-1">Tempo de Reset (s)</label>
+                     <label className="block text-xs text-gray-500 mb-1">Reset (s)</label>
                      <input 
                        type="number" 
                        value={rank.mine.resetTime} 
@@ -120,8 +133,19 @@ const RankEditor: React.FC<RankEditorProps> = ({ ranks, onChange }) => {
                      />
                   </div>
                   <div>
+                     <label className="block text-xs text-gray-500 mb-1">Efeito</label>
+                     <input 
+                       type="text" 
+                       value={rank.mine.effectType || "haste"} 
+                       onChange={(e) => handleMineChange(index, 'effectType', e.target.value)} 
+                       placeholder="haste"
+                       className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm" 
+                       disabled={rank.mine.regionEffects === false}
+                     />
+                  </div>
+                  <div>
                      <label className="block text-xs text-gray-500 mb-1 flex items-center gap-1">
-                        <Zap className="w-3 h-3 text-yellow-500" /> Nível do Haste
+                        <Zap className="w-3 h-3 text-yellow-500" /> Nível
                      </label>
                      <input 
                        type="number" 
@@ -129,9 +153,15 @@ const RankEditor: React.FC<RankEditorProps> = ({ ranks, onChange }) => {
                        onChange={(e) => handleMineChange(index, 'hasteAmplifier', Number(e.target.value))} 
                        placeholder="1"
                        className="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm" 
+                       disabled={rank.mine.regionEffects === false}
                      />
                   </div>
                 </div>
+                {rank.mine.regionEffects === false && (
+                    <p className="text-[10px] text-yellow-500 flex items-center gap-1">
+                        <Map className="w-3 h-3" /> Efeitos por região desativados para esta mina.
+                    </p>
+                )}
 
               </div>
             </div>

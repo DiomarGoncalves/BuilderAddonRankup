@@ -2,13 +2,9 @@ export const MINES_FEATURE_CODE = `import { world } from "@minecraft/server";
 import { config } from "../core/config.js";
 
 // Helper to safely parse coordinates from fill command strings
-function parseFillCoords(cmd) {
+function parseFillCmd(cmd) {
     try {
-        // Remove slash, trim whitespace, and split by one or more spaces
         const parts = cmd.replace("/", "").trim().split(/\\s+/);
-        
-        // Expected format: fill x1 y1 z1 x2 y2 z2 block ...
-        // Index:           0    1  2  3  4  5  6
         
         if (parts.length < 7) return null;
         if (parts[0].toLowerCase() !== "fill") return null;
@@ -19,10 +15,11 @@ function parseFillCoords(cmd) {
         const x2 = parseFloat(parts[4]);
         const y2 = parseFloat(parts[5]);
         const z2 = parseFloat(parts[6]);
+        const blockType = parts[7] || "minecraft:air";
 
         if (isNaN(x1) || isNaN(y1) || isNaN(z1) || isNaN(x2) || isNaN(y2) || isNaN(z2)) return null;
 
-        return { x1, y1, z1, x2, y2, z2 };
+        return { x1, y1, z1, x2, y2, z2, blockType };
     } catch (e) {
         return null;
     }
@@ -34,22 +31,24 @@ export function mineAt(config, location) {
         
         // Handle multiline commands - assume the first line defines the area
         const firstCmd = rank.mine.fillCommands.split('\\n')[0];
-        const coords = parseFillCoords(firstCmd);
+        const data = parseFillCmd(firstCmd);
         
-        if (!coords) continue;
+        if (!data) continue;
 
         // Add a small buffer (0.5) to ensure edge cases (standing exactly on the line) are covered
-        const minX = Math.min(coords.x1, coords.x2) - 0.5; 
-        const maxX = Math.max(coords.x1, coords.x2) + 1.5;
-        const minY = Math.min(coords.y1, coords.y2) - 0.5;
-        const maxY = Math.max(coords.y1, coords.y2) + 1.5;
-        const minZ = Math.min(coords.z1, coords.z2) - 0.5;
-        const maxZ = Math.max(coords.z1, coords.z2) + 1.5;
+        const minX = Math.min(data.x1, data.x2) - 0.5; 
+        const maxX = Math.max(data.x1, data.x2) + 1.5;
+        const minY = Math.min(data.y1, data.y2) - 0.5;
+        const maxY = Math.max(data.y1, data.y2) + 1.5;
+        const minZ = Math.min(data.z1, data.z2) - 0.5;
+        const maxZ = Math.max(data.z1, data.z2) + 1.5;
 
         if (location.x >= minX && location.x <= maxX &&
             location.y >= minY && location.y <= maxY &&
             location.z >= minZ && location.z <= maxZ) {
-            return rank.mine;
+            
+            // Attach the block type to the returned object for protection logic
+            return { ...rank.mine, oreBlock: data.blockType };
         }
     }
     return null;
@@ -68,8 +67,6 @@ export async function resetMine(mineConfig, dimension) {
                 await dimension.runCommandAsync(cmd);
                 executed++;
             }
-            // Optional log
-            // if (executed > 0) console.warn(\`Mina resetada\`);
         }
     } catch (e) { console.warn("Erro reset mina: " + e); }
 }
@@ -106,7 +103,6 @@ function getMineBoundsFromFillCommands(fillCommands) {
   const coords = parseFillCoords(firstCmd);
   if (!coords) return null;
 
-  // Small buffer to ensure player is really "inside"
   const minX = Math.min(coords.x1, coords.x2) - 0.01;
   const maxX = Math.max(coords.x1, coords.x2) + 1.01;
   const minY = Math.min(coords.y1, coords.y2) - 0.01;
@@ -133,7 +129,7 @@ function anyPlayerInsideMine(dimension, bounds) {
 }
 
 export function startAutoMineResets(config) {
-  const state = new Map(); // key: mineKey -> { running, nextResetMs, pending }
+  const state = new Map(); 
 
   system.runInterval(async () => {
     const now = Date.now();
@@ -148,7 +144,7 @@ export function startAutoMineResets(config) {
       const bounds = getMineBoundsFromFillCommands(mine.fillCommands);
       if (!bounds) continue;
 
-      const dimensionId = "overworld"; // Default to overworld
+      const dimensionId = "overworld"; 
       const dimension = world.getDimension(dimensionId);
 
       const mineKey = \`\${rank.id}_mine\`;
@@ -165,25 +161,19 @@ export function startAutoMineResets(config) {
 
       if (s.running) continue;
 
-      // If time hasn't passed yet
       if (!s.pending && now < s.nextResetMs) continue;
 
-      // Check for players inside
       const hasPlayer = anyPlayerInsideMine(dimension, bounds);
       if (hasPlayer) {
-        // Player inside, mark as pending and try again next tick
         s.pending = true;
         continue;
       }
 
-      // Safe to reset
       s.running = true;
       s.pending = false;
 
       try {
         await resetMine(mine, dimension);
-        // Optional: Broadcast reset
-        // world.sendMessage(\`§e[Mina] §fMina \${rank.name} resetada.\`);
       } catch (e) {
         console.warn(\`[AutoReset] Falha ao resetar mina \${rank.name}: \${e}\`);
       } finally {
@@ -191,6 +181,6 @@ export function startAutoMineResets(config) {
         s.running = false;
       }
     }
-  }, 20); // Check every second
+  }, 20); 
 }
 `;

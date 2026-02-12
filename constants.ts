@@ -12,6 +12,10 @@ export const TECHNICAL_PROMPT_TEMPLATE = `
    - scripts/features/shop.js (Loja e categorias)
    - scripts/features/sell.js (Venda de itens)
    - scripts/features/plots.js (Sistema de terrenos)
+   - scripts/features/bank.js (Sistema bancário com saldo separado)
+   - scripts/features/boosters.js (Sistema de Multiplicadores e Boosters)
+   - scripts/features/missions.js (Sistema de Missões Diárias/Semanais)
+   - scripts/features/security.js (Logs, Proteção e Anti-Exploit)
    - scripts/ui/menu.js (Menus UI com @minecraft/server-ui)
    - scripts/ui/player.js (Interações do jogador)
    - scripts/runtime/loops.js (Loops principais: HUD, resets)
@@ -24,6 +28,10 @@ export const TECHNICAL_PROMPT_TEMPLATE = `
    - O código deve ser robusto: trate erros (try/catch) onde necessário.
    - O manifesto deve ter dependências corretas.
    - A economia deve usar ScoreboardObjectives (id: "money").
+   - O banco deve usar ScoreboardObjectives (id: "ru_bank").
+   - Boosters temporários devem usar DynamicProperties no jogador (ex: "booster_sell_end").
+   - Missões devem usar DynamicProperties para salvar progresso e datas de reset.
+   - Logs de segurança devem usar world.sendMessage para players com tag "admin".
    - Máquinas devem usar blocks. location e guardar estado em memória ou scoreboard/dynamic properties se possível (para simplificar, use array em memória ou scoreboard dummy).
    - O sistema de Plots deve ser simples: baseado em coordenadas ou IDs simulados.
 
@@ -39,6 +47,38 @@ export const INITIAL_CONFIG: AddonConfig = {
     currencySymbol: "$",
     startingBalance: 0
   },
+  bank: {
+    enabled: true
+  },
+  boosters: {
+    enabled: true,
+    globalMultiplier: 1.0,
+    vips: [
+      { tag: "vip", name: "VIP", multiplier: 1.2 },
+      { tag: "mvp", name: "MVP", multiplier: 1.5 }
+    ],
+    items: [
+      { id: "boost_sell_2x_30m", name: "Booster de Venda 2x (30m)", type: "sell", multiplier: 2.0, durationMinutes: 30 },
+      { id: "boost_mach_2x_10m", name: "Booster de Máquinas 2x (10m)", type: "machine", multiplier: 2.0, durationMinutes: 10 }
+    ]
+  },
+  missions: {
+    enabled: true,
+    list: [
+        { id: "m_daily_mine", name: "Minerador Iniciante", type: "mine", target: 500, period: "daily", rewardType: "money", rewardValue: 5000 },
+        { id: "m_daily_sell", name: "Comerciante do Dia", type: "sell", target: 1000, period: "daily", rewardType: "item", rewardValue: 64, rewardId: "minecraft:diamond" },
+        { id: "m_weekly_rank", name: "Evolução Semanal", type: "rankup", target: 2, period: "weekly", rewardType: "booster", rewardValue: 1, rewardId: "boost_sell_2x_30m" }
+    ]
+  },
+  protection: {
+    enabled: true,
+    mineProtection: true,
+    blockPlaceInMine: false,
+    antiExploit: {
+      maxSellPerMinute: 60
+    },
+    adminLogs: true
+  },
   ranks: [
     {
       id: "rank_coal",
@@ -47,7 +87,9 @@ export const INITIAL_CONFIG: AddonConfig = {
       mine: {
         fillCommands: "/fill 276 -5 255 281 1 261 minecraft:coal_ore",
         resetTime: 300,
-        hasteAmplifier: 1
+        hasteAmplifier: 1,
+        regionEffects: true,
+        effectType: "haste"
       },
       perks: ["Acesso à Mina Carvão", "Kit Iniciante"]
     },
@@ -58,7 +100,9 @@ export const INITIAL_CONFIG: AddonConfig = {
       mine: {
         fillCommands: "/fill 290 -5 255 295 1 261 minecraft:iron_ore",
         resetTime: 300,
-        hasteAmplifier: 2
+        hasteAmplifier: 2,
+        regionEffects: true,
+        effectType: "haste"
       },
       perks: ["Acesso à Mina Ferro", "Multiplicador 1.1x"]
     }
@@ -100,14 +144,20 @@ export const INITIAL_CONFIG: AddonConfig = {
       name: "Máquina de Moedas",
       blockId: "minecraft:gold_block",
       dropsItemId: "minecraft:gold_nugget",
-      dropsPerMinute: 20
+      dropsPerMinute: 20,
+      dropMode: "below",
+      storageMode: "chest",
+      maxPerChunk: 16
     },
     {
       id: "machine_iron",
       name: "Gerador de Ferro",
       blockId: "minecraft:iron_block",
       dropsItemId: "minecraft:iron_ingot",
-      dropsPerMinute: 10
+      dropsPerMinute: 10,
+      dropMode: "below",
+      storageMode: "drop",
+      maxPerChunk: 16
     }
   ],
   plots: {

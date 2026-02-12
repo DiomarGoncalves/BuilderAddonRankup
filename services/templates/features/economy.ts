@@ -1,10 +1,15 @@
 export const SELL_FEATURE_CODE = `import { config } from "../core/config.js";
 import { addMoney } from "../core/economy.js";
+import { getSellMultiplier } from "./boosters.js";
 
 export function sellAll(player) {
     const inv = player.getComponent("inventory").container;
     let total = 0;
     let soldCount = 0;
+    
+    // Calculate Multiplier
+    const multiplier = config.boosters && config.boosters.enabled ? getSellMultiplier(player) : 1.0;
+
     for (let i = 0; i < inv.size; i++) {
         const item = inv.getItem(i);
         if (!item) continue;
@@ -16,9 +21,17 @@ export function sellAll(player) {
             inv.setItem(i, undefined);
         }
     }
+    
     if (total > 0) {
-        addMoney(player, total);
-        return { success: true, msg: \`§aVendido \${soldCount} itens por \${config.economy.currencySymbol}\${total}\` };
+        // Apply Multiplier
+        const finalTotal = Math.floor(total * multiplier);
+        addMoney(player, finalTotal);
+        
+        let msg = \`§aVendido \${soldCount} itens por \${config.economy.currencySymbol}\${finalTotal}\`;
+        if (multiplier > 1.0) {
+            msg += \` §e(Mult: \${multiplier.toFixed(1)}x)\`;
+        }
+        return { success: true, msg: msg };
     }
     return { success: false, msg: "§cNada para vender." };
 }

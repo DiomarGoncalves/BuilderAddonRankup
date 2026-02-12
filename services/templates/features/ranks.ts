@@ -1,6 +1,7 @@
 export const RANK_FEATURE_CODE = `import { config } from "../core/config.js";
 import { getBalance, removeMoney } from "../core/economy.js";
 import { world } from "@minecraft/server";
+import { incrementMissionProgress } from "./missions.js";
 
 export function getPlayerRank(player) {
     for (let i = config.ranks.length - 1; i >= 0; i--) {
@@ -25,6 +26,10 @@ export function buyNextRank(player) {
 
     removeMoney(player, next.price);
     player.addTag(next.id);
+    
+    // Mission Trigger
+    incrementMissionProgress(player, "rankup", 1);
+
     world.sendMessage(\`§e\${player.name} §fupou para §b\${next.name}§f!\`);
     return { success: true, msg: "§aSucesso!" };
 }

@@ -1,6 +1,6 @@
 import { AddonConfig, GeneratedFile } from "../types";
 import { MAIN_MENU_CODE } from "./templates/ui/main";
-import { RANK_MENU_CODE, MINE_MENU_CODE, SHOP_MENU_CODE, BANK_MENU_CODE, PLOT_MENU_CODE } from "./templates/ui/gameplay";
+import { RANK_MENU_CODE, MINE_MENU_CODE, SHOP_MENU_CODE, BANK_MENU_CODE, PLOT_MENU_CODE, BOOSTERS_MENU_CODE, MISSIONS_MENU_CODE } from "./templates/ui/gameplay";
 import { ADMIN_MENU_CODE } from "./templates/ui/admin";
 
 export const generateUI = (config: AddonConfig): GeneratedFile[] => {
@@ -47,6 +47,22 @@ export const generateUI = (config: AddonConfig): GeneratedFile[] => {
     path: "scripts/ui/menus/admin.js",
     content: ADMIN_MENU_CODE
   });
+
+  // 8. BOOSTERS MENU (Only if enabled)
+  if (config.boosters && config.boosters.enabled) {
+      files.push({
+        path: "scripts/ui/menus/boosters.js",
+        content: BOOSTERS_MENU_CODE
+      });
+  }
+
+  // 9. MISSIONS MENU
+  if (config.missions && config.missions.enabled) {
+      files.push({
+        path: "scripts/ui/menus/missions.js",
+        content: MISSIONS_MENU_CODE
+      });
+  }
 
   return files;
 };

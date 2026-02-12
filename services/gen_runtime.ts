@@ -1,4 +1,5 @@
 import { AddonConfig, GeneratedFile } from "../types";
+import { EVENTS_RUNTIME_CODE } from "./templates/runtime/events";
 
 export const generateRuntime = (config: AddonConfig): GeneratedFile[] => {
   const files: GeneratedFile[] = [];
@@ -17,16 +18,15 @@ import { mineAt } from "../features/mines.js";
 
 export function startLoops() {
   
-  // 1. Inicializa a Sidebar Global uma única vez (ou periodicamente se necessário, mas sem remover)
+  // 1. Inicializa a Sidebar Global uma única vez
   initGlobalSidebar();
 
-  // 2. Loop Principal (HUD e Lógica de Jogador)
+  // 2. Loop Principal (HUD e Lógica de Jogador) - A cada 20 ticks (1 segundo)
   system.runInterval(() => {
     for (const player of world.getPlayers()) {
         if (!player.isValid()) continue;
 
         // A. ACTION BAR (HUD PESSOAL)
-        // Como a sidebar é global, usamos aqui para mostrar Money e Rank individual
         try {
             const balance = getBalance(player);
             const currentRank = getPlayerRank(player);
@@ -44,12 +44,19 @@ export function startLoops() {
             
         } catch (e) {}
 
-        // B. Haste Effect nas Minas
+        // B. Efeitos de Região (Mina)
         try {
           const mine = mineAt(config, player.location);
-          if (mine) {
-            player.addEffect("haste", 20, {
-              amplifier: mine.hasteAmplifier,
+          // Verifica se a mina existe e se a flag regionEffects não é 'false' (padrão true)
+          if (mine && mine.regionEffects !== false) {
+            const effect = mine.effectType || "haste";
+            const amp = mine.hasteAmplifier || 0;
+            
+            // Aplica efeito por 40 ticks (2 segundos)
+            // O loop roda a cada 20 ticks. Dando 40 ticks, garantimos que não pisque.
+            // Quando o jogador sair, o efeito acaba em no máximo 2 segundos.
+            player.addEffect(effect, 40, {
+              amplifier: amp,
               showParticles: false
             });
           }
@@ -80,76 +87,7 @@ export function startLoops() {
   // EVENTS
   files.push({
     path: "scripts/runtime/events.js",
-    content: `import { world, system, ItemStack } from "@minecraft/server";
-import { checkPlotPermission } from "../features/plots.js";
-import { handleNPCInteract, removeNPC } from "../features/npcs.js";
-import { registerMachine, removeMachine } from "../features/machines.js";
-import { config } from "../core/config.js";
-import { openMainMenu } from "../ui/menu.js";
-
-export function registerEvents() {
-    // Menu
-    world.afterEvents.itemUse.subscribe((ev) => {
-        if (ev.itemStack.typeId === "minecraft:compass") openMainMenu(ev.source);
-    });
-
-    // Spawn Kit
-    world.afterEvents.playerSpawn.subscribe((ev) => {
-        if (ev.initialSpawn) {
-            const inv = ev.player.getComponent("inventory").container;
-            let has = false;
-            for (let i = 0; i < inv.size; i++) { if (inv.getItem(i)?.typeId === "minecraft:compass") has = true; }
-            if (!has) {
-                const menu = new ItemStack("minecraft:compass");
-                menu.nameTag = "§a§lMENU";
-                menu.lockMode = "slot"; menu.keepOnDeath = true;
-                inv.setItem(8, menu);
-            }
-        }
-    });
-
-    // NPC Interaction
-    world.afterEvents.playerInteractWithEntity.subscribe((ev) => {
-        const { player, target, itemStack } = ev;
-        if (target.typeId === "minecraft:npc" && target.hasTag("ru_npc")) {
-            if (player.isSneaking && itemStack?.typeId === "minecraft:stick" && player.hasTag("admin")) {
-                player.sendMessage(removeNPC(player, target).msg);
-            } else system.run(() => handleNPCInteract(player, target));
-        }
-    });
-
-    // --- PROTECTION SYSTEM ---
-    
-    world.beforeEvents.itemUseOn.subscribe((ev) => {
-        if (!checkPlotPermission(ev.source, ev.block)) {
-            ev.cancel = true;
-            system.run(() => ev.source.sendMessage("§c§lPROTEGIDO! §r§7Sem permissão."));
-        }
-    });
-
-    world.beforeEvents.playerBreakBlock.subscribe((ev) => {
-        if (!checkPlotPermission(ev.player, ev.block)) {
-            ev.cancel = true;
-            system.run(() => ev.player.sendMessage("§c§lPROTEGIDO! §r§7Sem permissão."));
-        }
-    });
-
-    // --- MACHINES SYSTEM ---
-
-    world.afterEvents.playerPlaceBlock.subscribe((ev) => {
-        const mConfig = config.machines.find(m => m.blockId === ev.block.typeId);
-        if (mConfig) {
-             registerMachine(ev.player, ev.block, mConfig.id);
-        }
-    });
-
-    world.afterEvents.playerBreakBlock.subscribe((ev) => {
-        if (removeMachine(ev.block)) {
-            ev.player.sendMessage("§eMáquina removida.");
-        }
-    });
-}
-`
+    content: EVENTS_RUNTIME_CODE
   });
 
   return files;

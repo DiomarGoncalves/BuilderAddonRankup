@@ -7,6 +7,9 @@ import SettingsEditor from './components/SettingsEditor';
 import ShopSellEditor from './components/ShopSellEditor';
 import PlotEditor from './components/PlotEditor';
 import MachineEditor from './components/MachineEditor';
+import BoostersEditor from './components/BoostersEditor';
+import MissionsEditor from './components/MissionsEditor';
+import ProtectionEditor from './components/ProtectionEditor';
 import CodeViewer from './components/CodeViewer';
 import { Hammer, Code, LayoutDashboard, Loader2, Play, Upload, Save, FileJson } from 'lucide-react';
 import clsx from 'clsx';
@@ -164,9 +167,32 @@ const App: React.FC = () => {
               <SettingsEditor 
                 serverName={config.serverName}
                 economy={config.economy}
+                bank={config.bank}
                 onServerNameChange={(val) => setConfig(prev => ({ ...prev, serverName: val }))}
                 onEconomyChange={(val) => setConfig(prev => ({ ...prev, economy: val }))}
+                onBankChange={(val) => setConfig(prev => ({ ...prev, bank: val }))}
               />
+              
+              <div className="border-t border-gray-800 pt-8">
+                 <ProtectionEditor 
+                   config={config.protection}
+                   onChange={(protection) => setConfig(prev => ({ ...prev, protection }))}
+                 />
+              </div>
+
+              <div className="border-t border-gray-800 pt-8">
+                 <MissionsEditor 
+                    config={config.missions}
+                    onChange={(missions) => setConfig(prev => ({ ...prev, missions }))}
+                 />
+              </div>
+
+              <div className="border-t border-gray-800 pt-8">
+                <BoostersEditor 
+                   config={config.boosters}
+                   onChange={(boosters) => setConfig(prev => ({ ...prev, boosters }))}
+                />
+              </div>
 
               <div className="border-t border-gray-800 pt-8">
                  <RankEditor 
