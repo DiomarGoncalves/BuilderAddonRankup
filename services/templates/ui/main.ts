@@ -1,5 +1,5 @@
 export const MAIN_MENU_CODE = `import { ActionFormData } from "@minecraft/server-ui";
-import { config } from "../../core/config.js";
+import { config } from "../core/config.js";
 import { sellAll } from "../features/sell.js";
 import { openRankUpMenu } from "./menus/rank.js";
 import { openMinesMenu } from "./menus/mine.js";

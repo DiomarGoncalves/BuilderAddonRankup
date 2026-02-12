@@ -40,68 +40,72 @@ export function registerEvents() {
         }
     });
 
-    // --- PROTECTION SYSTEM ---
+    // --- PROTECTION SYSTEM (Interaction & Placement) ---
     
-    // Block Place
-    world.beforeEvents.playerPlaceBlock.subscribe((ev) => {
-        const { player, block } = ev;
+    // Using itemUseOn to prevent placement/interaction (Fixes 'subscribe of undefined' error)
+    world.beforeEvents.itemUseOn.subscribe((ev) => {
+        const { source: player, block } = ev;
         const protection = config.protection || { enabled: false };
+
+        // 1. Plot Protection (First priority)
+        if (!checkPlotPermission(player, block)) {
+            ev.cancel = true;
+            system.run(() => player.sendMessage("§c§lPROTEGIDO! §r§7Sem permissão no Plot."));
+            return;
+        }
 
         if (!protection.enabled) return;
 
-        // 1. Mine Protection
+        // 2. Mine Protection (Prevent placing blocks or interacting with mine blocks)
         if (protection.mineProtection) {
             const mine = mineAt(config, block.location);
+            // If the block interacted with IS part of a mine
             if (mine && !protection.blockPlaceInMine) {
                 if (!player.hasTag("admin")) {
                     ev.cancel = true;
-                    system.run(() => player.sendMessage("§cProteção de Mina: Não pode colocar blocos aqui."));
-                    return;
+                    // Suppress spam unless checking specifically
+                    if (ev.itemStack && ev.itemStack.typeId.includes("block")) {
+                         system.run(() => player.sendMessage("§cProteção de Mina: Proibido construir aqui."));
+                    }
                 }
             }
         }
-
-        // 2. Plot Protection
-        if (!checkPlotPermission(player, block)) {
-            ev.cancel = true;
-            system.run(() => player.sendMessage("§c§lPROTEGIDO! §r§7Sem permissão."));
-        }
     });
 
-    // Block Break
+    // Block Break Protection
     world.beforeEvents.playerBreakBlock.subscribe((ev) => {
         const { player, block } = ev;
         const protection = config.protection || { enabled: false };
         
+        // 1. Plot Protection
+        if (!checkPlotPermission(player, block)) {
+            ev.cancel = true;
+            system.run(() => player.sendMessage("§c§lPROTEGIDO! §r§7Sem permissão no Plot."));
+            return;
+        }
+
         if (!protection.enabled) return;
 
-        // 1. Mine Protection
+        // 2. Mine Protection
         if (protection.mineProtection) {
              const mine = mineAt(config, block.location);
              if (mine) {
-                 // Check if it is the ore. If the mine config doesn't have an ore type (old format), we might skip this check 
-                 // OR we extracted it in mineAt from fillCommands.
+                 // Allow breaking if it is the ore block
                  const isOre = mine.oreBlock && (block.typeId === mine.oreBlock || block.typeId.includes("ore"));
                  
-                 // If it's NOT the ore (e.g. walls, floor), prevent break.
+                 // If not ore (walls/floor), cancel
                  if (!isOre && !player.hasTag("admin")) {
                      ev.cancel = true;
                      system.run(() => player.sendMessage("§cProteção de Mina: Apenas minérios podem ser quebrados."));
                      return;
                  }
-                 // If it IS the ore, allow it (do not return, let other checks run if any)
              }
-        }
-
-        // 2. Plot Protection
-        if (!checkPlotPermission(player, block)) {
-            ev.cancel = true;
-            system.run(() => player.sendMessage("§c§lPROTEGIDO! §r§7Sem permissão."));
         }
     });
 
     // --- MACHINES & MISSIONS SYSTEM ---
 
+    // Note: playerPlaceBlock in afterEvents IS VALID for registration (logic), just not protection (cancellation).
     world.afterEvents.playerPlaceBlock.subscribe((ev) => {
         const mConfig = config.machines.find(m => m.blockId === ev.block.typeId);
         if (mConfig) {
@@ -114,7 +118,7 @@ export function registerEvents() {
         // Machine removal check
         if (removeMachine(ev.block)) {
             ev.player.sendMessage("§eMáquina removida.");
-            // logAdminAction(ev.player, "quebrou uma Máquina."); // Optional, might be spammy
+            // logAdminAction(ev.player, "quebrou uma Máquina."); 
             return;
         }
 

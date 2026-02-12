@@ -6,7 +6,6 @@ const activeMachines = new Map();
 const OBJ_ID = "ru_machines";
 
 // Scoreboard format: "x:y:z:dim:type:ownerName"
-// We added ownerName to the end for 2.0+
 
 function getObjective() {
     let obj = world.scoreboard.getObjective(OBJ_ID);
@@ -19,9 +18,6 @@ export function initMachines() {
     for (const participant of obj.getParticipants()) {
         try {
             const data = participant.displayName;
-            // Split by :
-            // Old format: x:y:z:dim:type (len 5)
-            // New format: x:y:z:dim:type:owner (len 6)
             const parts = data.split(":");
             if (parts.length < 5) continue;
             
@@ -31,7 +27,7 @@ export function initMachines() {
             activeMachines.set(key, {
                 x: parseInt(x), y: parseInt(y), z: parseInt(z),
                 dim: dim, type: type, 
-                owner: owner || null, // Backwards compat
+                owner: owner || null, 
                 lastDrop: Date.now()
             });
         } catch (e) {}
@@ -95,14 +91,11 @@ export function removeMachine(block) {
         const machine = activeMachines.get(key);
         activeMachines.delete(key);
         
-        // Remove from scoreboard (try both formats if strict matching needed, but we usually iterate.
-        // Scoreboard API requires exact participant match to remove. We reconstruct it.)
         const ownerSuffix = machine.owner ? \`:\${machine.owner}\` : "";
         const dataString = \`\${machine.x}:\${machine.y}:\${machine.z}:\${machine.dim}:\${machine.type}\${ownerSuffix}\`;
         
         try { getObjective().removeParticipant(dataString); } catch(e) {}
         
-        // Also try removing old format just in case it was a legacy machine
         if (!machine.owner) {
              const oldData = \`\${machine.x}:\${machine.y}:\${machine.z}:\${machine.dim}:\${machine.type}\`;
              try { getObjective().removeParticipant(oldData); } catch(e) {}
@@ -115,20 +108,19 @@ export function removeMachine(block) {
 
 export function machinesTick() {
     const now = Date.now();
-    
-    // Cache owners to avoid looking up player object every ms
-    const playerCache = new Map(); // name -> PlayerObject
+    const playerCache = new Map(); 
 
     for (const [key, machine] of activeMachines) {
         const mConfig = config.machines.find(m => m.id === machine.type);
         if (!mConfig) continue;
 
-        // Calculate rate with Multiplier
         let multiplier = 1.0;
         
-        // Only apply multipliers if we know the owner and they are online
         if (machine.owner) {
+            // Check cache first
             let ownerPlayer = playerCache.get(machine.owner);
+            
+            // If not in cache, check world
             if (!ownerPlayer) {
                 const players = world.getPlayers({ name: machine.owner });
                 if (players.length > 0) {
@@ -136,8 +128,12 @@ export function machinesTick() {
                     playerCache.set(machine.owner, ownerPlayer);
                 }
             }
+            
+            // If online, get multiplier. If offline, stays 1.0.
             if (ownerPlayer) {
-                multiplier = getMachineMultiplier(ownerPlayer);
+                try {
+                    multiplier = getMachineMultiplier(ownerPlayer);
+                } catch (e) { multiplier = 1.0; }
             }
         }
 
@@ -153,6 +149,7 @@ export function machinesTick() {
                 try { block = dim.getBlock({ x: machine.x, y: machine.y, z: machine.z }); } catch (e) { continue; }
 
                 if (!block || block.typeId !== mConfig.blockId) {
+                    // Block gone, remove machine data
                     activeMachines.delete(key);
                     const ownerSuffix = machine.owner ? \`:\${machine.owner}\` : "";
                     const dataString = \`\${machine.x}:\${machine.y}:\${machine.z}:\${machine.dim}:\${machine.type}\${ownerSuffix}\`;
@@ -183,7 +180,10 @@ export function machinesTick() {
                 }
 
                 machine.lastDrop = now;
-            } catch (e) {}
+            } catch (e) {
+                // If chunk is unloaded, getting block/dim throws error. 
+                // We ignore it so the machine keeps working when chunk reloads.
+            }
         }
     }
 }

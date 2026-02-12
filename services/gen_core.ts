@@ -64,37 +64,34 @@ export function transferMoney(sender, receiverName, amount) {
   // 3. DISPLAY.JS (Sidebar Implementation)
   files.push({
     path: "scripts/core/display.js",
-    content: `import { world } from "@minecraft/server";
+    content: `import { world, DisplaySlotId } from "@minecraft/server";
 import { config } from "./config.js";
 
 const SB_ID = "board_main";
 
 // Inicializa a Sidebar Global
-// No Bedrock, a Sidebar é compartilhada por todos. Stats individuais (Money/Rank) devem ir na Actionbar.
 export function initGlobalSidebar() {
     try {
         const sbManager = world.scoreboard;
         let sb = sbManager.getObjective(SB_ID);
         
-        // Se não existir, cria. Se existir, não removemos para evitar piscar.
         if (!sb) {
             sb = sbManager.addObjective(SB_ID, \`§6§l\${config.serverName}\`);
         }
 
-        // Define no slot lateral
-        sbManager.setObjectiveAtDisplaySlot("sidebar", { objective: sb });
+        // Fix: Use DisplaySlotId.Sidebar instead of raw string to prevent TypeError
+        sbManager.setObjectiveAtDisplaySlot(DisplaySlotId.Sidebar, { objective: sb });
 
-        // Conteúdo Estático Global
-        // Como 'setScore' acumula linhas se o texto mudar, usamos textos fixos aqui.
-        sb.setScore("§7----------------", 15);
+        sb.setScore("§8----------------", 15);
         sb.setScore(" §fBem-vindo!", 14);
         sb.setScore("   ", 13);
         sb.setScore(" §fUse o Item:", 12);
         sb.setScore(" §a Bússola (Menu)", 11);
         sb.setScore("    ", 10);
         sb.setScore(" §fSeus Stats:", 9);
-        sb.setScore(" §e Olhe a Actionbar", 8); // Indica onde olhar o dinheiro
-        sb.setScore("§7---------------- ", 1);
+        sb.setScore(" §e Olhe a Actionbar", 8); 
+        sb.setScore("§8---------------- ", 1);
+        
         
     } catch (e) {
         console.warn("Erro ao iniciar Sidebar:", e);
